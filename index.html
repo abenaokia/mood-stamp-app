@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
-<title>気分スタンプ帳</title>
+<title>感情のスタンプ帳</title>
 
 <!-- PWA: ホーム画面に追加してアプリのように使うための設定 -->
 <link rel="manifest" href="./manifest.json">
@@ -11,7 +11,7 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="スタンプ帳">
+<meta name="apple-mobile-web-app-title" content="感情スタンプ帳">
 <link rel="apple-touch-icon" href="./icon-192.svg">
 <link rel="icon" href="./icon-192.svg">
 
@@ -64,6 +64,14 @@
     margin:0;
     font-weight:700;
     letter-spacing:.02em;
+  }
+  .user-name{
+    font-size:11.5px;
+    color:var(--sub);
+    margin-top:3px;
+    cursor:pointer;
+    display:inline-block;
+    border-bottom:1px dotted var(--sub);
   }
   header.topbar .date{
     font-size:12px;
@@ -443,7 +451,10 @@
 <body>
 <div class="phone">
   <header class="topbar">
-    <h1>気分スタンプ帳</h1>
+    <div>
+      <h1>感情のスタンプ帳</h1>
+      <div class="user-name" id="userName">名前を設定 ✎</div>
+    </div>
     <div class="date" id="topDate"></div>
   </header>
 
@@ -576,6 +587,7 @@
   "use strict";
   var STORAGE_KEY = "moodStampApp_v2";
   var OLD_STORAGE_KEY = "moodStampApp_v1";
+  var NAME_KEY = "moodStampApp_userName";
   var MONTHS_JA = ["1月","2月","3月","4月","5月","6月","7月","8月","9月","10月","11月","12月"];
   var PAGE_SIZE = 30;
 
@@ -712,6 +724,28 @@
     var now = new Date();
     var opts = {month:"long", day:"numeric", weekday:"short"};
     document.getElementById("topDate").textContent = now.toLocaleDateString("ja-JP", opts);
+  }
+
+  function loadUserName(){
+    try{ return localStorage.getItem(NAME_KEY) || ""; }catch(e){ return ""; }
+  }
+
+  function saveUserName(name){
+    try{ localStorage.setItem(NAME_KEY, name); }catch(e){ /* ignore */ }
+  }
+
+  function renderUserName(){
+    var name = loadUserName();
+    var el = document.getElementById("userName");
+    el.textContent = name ? name + "さん ✎" : "名前を設定 ✎";
+  }
+
+  function editUserName(){
+    var current = loadUserName();
+    var input = window.prompt("表示する名前を入力してください", current);
+    if(input === null) return;
+    saveUserName(input.trim());
+    renderUserName();
   }
 
   function renderHome(dayMap){
@@ -898,7 +932,7 @@
       try{
         var file = new File([blob], filename, {type:"application/json"});
         if(navigator.canShare({files:[file]})){
-          navigator.share({files:[file], title: "気分スタンプ帳のバックアップ"}).catch(function(){});
+          navigator.share({files:[file], title: "感情のスタンプ帳のバックアップ"}).catch(function(){});
           return;
         }
       }catch(e){ /* fall through to download link */ }
@@ -943,6 +977,7 @@
   function renderAll(){
     var dayMap = groupByDay();
     renderTopDate();
+    renderUserName();
     renderHome(dayMap);
     renderBook();
     renderCalendar(dayMap);
@@ -1013,6 +1048,8 @@
   document.getElementById("modalAddGray").addEventListener("click", function(){
     addStamp("gray", state.modalDate);
   });
+
+  document.getElementById("userName").addEventListener("click", editUserName);
 
   document.getElementById("exportBtn").addEventListener("click", exportData);
   document.getElementById("importBtn").addEventListener("click", function(){
