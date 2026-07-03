@@ -1,0 +1,16 @@
+{
+  "name": "気分スタンプ帳",
+  "short_name": "スタンプ帳",
+  "description": "金色・灰色スタンプを集めて毎日の気分を記録するアプリ",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#e9e4d8",
+  "theme_color": "#2b2b2b",
+  "lang": "ja",
+  "icons": [
+    { "src": "./icon-192.svg", "sizes": "192x192", "type": "image/svg+xml", "purpose": "any" },
+    { "src": "./icon-512.svg", "sizes": "512x512", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}
