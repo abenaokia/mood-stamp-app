@@ -144,6 +144,17 @@
     gap:10px;
     margin-bottom:18px;
   }
+  .note-input-row{margin-bottom:16px;}
+  .note-input-row input{
+    width:100%;
+    padding:10px 12px;
+    border:1px solid var(--line);
+    border-radius:12px;
+    font-size:13px;
+    background:var(--bg);
+    color:var(--ink);
+    font-family:inherit;
+  }
   .date-row input[type="date"]{
     padding:8px 10px;
     border:1px solid var(--line);
@@ -325,6 +336,7 @@
   .cal-cell .daynum{font-size:10.5px;color:var(--sub);}
   .cal-cell.future{opacity:.35;cursor:default;}
   .cal-cell.today{box-shadow:0 0 0 2px var(--accent) inset;}
+  .cal-cell .note-flag{position:absolute;top:2px;right:4px;font-size:8px;line-height:1;}
   .cal-badges{display:flex;flex-direction:column;align-items:center;gap:2px;margin-top:2px;max-width:100%;}
   .badge{
     font-size:8px;font-weight:700;color:#fff;border-radius:6px;padding:1px 4px;min-width:0;line-height:1.3;
@@ -450,11 +462,45 @@
   }
   .modal-list{display:flex;flex-direction:column;gap:8px;}
   .modal-item{
-    display:flex;align-items:center;gap:10px;background:var(--bg);border-radius:10px;padding:8px 10px;font-size:12.5px;
+    display:flex;flex-direction:column;gap:4px;background:var(--bg);border-radius:10px;padding:8px 10px;font-size:12.5px;
   }
+  .modal-item-row{display:flex;align-items:center;gap:10px;}
   .modal-item .dot-sm{flex-shrink:0;}
   .modal-item .t{flex:1;color:var(--sub);}
   .modal-item button{border:none;background:none;color:var(--accent);font-size:14px;cursor:pointer;}
+  .item-badge{
+    display:inline-block;
+    flex-shrink:0;
+    padding:3px 10px;
+    border-radius:10px;
+    font-size:11px;
+    font-weight:700;
+    color:#fff;
+  }
+  .item-badge.gold{background:linear-gradient(135deg,var(--gold-2),var(--gold-3));}
+  .item-badge.gray{background:linear-gradient(135deg,var(--gray-2),var(--gray-3));}
+  .note-input{
+    width:100%;
+    border:none;
+    border-bottom:1px dashed var(--line);
+    background:transparent;
+    font-size:11.5px;
+    color:var(--ink);
+    padding:3px 0 3px 22px;
+    font-family:inherit;
+  }
+  .note-input::placeholder{color:var(--accent);}
+  .note-input:focus{outline:none;border-bottom-color:var(--accent);}
+  .user-name-input{
+    font-size:11.5px;
+    border:1px solid var(--accent);
+    border-radius:6px;
+    padding:1px 6px;
+    font-family:inherit;
+    background:#fff;
+    color:var(--ink);
+  }
+  .import-msg{font-size:12px;color:var(--ink);text-align:center;margin-top:6px;min-height:16px;}
 </style>
 </head>
 <body>
@@ -483,6 +529,9 @@
         <div class="date-row">
           <input type="date" id="addDate">
           <button type="button" class="link-btn" id="resetToday">今日に戻す</button>
+        </div>
+        <div class="note-input-row">
+          <input type="text" id="noteInput" placeholder="コメント（任意）" maxlength="200">
         </div>
         <div class="stamp-choices">
           <button class="stamp-btn" data-type="gold">
@@ -561,6 +610,7 @@
         <button type="button" class="data-btn" id="importBtn">📥 読み込む（他の端末から合体）</button>
         <input type="file" id="importFile" accept="application/json" style="display:none;">
       </div>
+      <div class="import-msg" id="importMsg"></div>
       <div class="empty-note">他の端末のデータと一緒にしたいときは、それぞれの端末で「書き出す」→ファイルを送る→もう一方の端末で「読み込む」。重複しないように合体されます。</div>
     </section>
   </main>
@@ -657,7 +707,7 @@
     return pad2(d.getHours())+":"+pad2(d.getMinutes());
   }
 
-  function addStamp(type, dateKey){
+  function addStamp(type, dateKey, note){
     var ts;
     if(dateKey && dateKey !== todayKey()){
       var base = parseKey(dateKey);
@@ -667,7 +717,7 @@
     } else {
       ts = Date.now();
     }
-    state.stamps.push({id: uid(), type: type, ts: ts});
+    state.stamps.push({id: uid(), type: type, ts: ts, note: note || ""});
     saveData();
     renderAll();
   }
@@ -676,6 +726,21 @@
     state.stamps = state.stamps.filter(function(s){ return s.id !== id; });
     saveData();
     renderAll();
+  }
+
+  function saveNote(id, value){
+    var stamp = state.stamps.find(function(s){ return s.id === id; });
+    if(!stamp) return;
+    stamp.note = value.trim();
+    saveData();
+    renderCalendar(groupByDay());
+    renderStats(groupByDay());
+  }
+
+  function escapeHtml(str){
+    return String(str).replace(/[&<>"']/g, function(ch){
+      return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[ch];
+    });
   }
 
   function undoLast(){
@@ -689,9 +754,10 @@
     var map = {};
     state.stamps.forEach(function(s){
       var key = dateKeyOf(s.ts);
-      if(!map[key]) map[key] = {gold:0, gray:0, items:[]};
+      if(!map[key]) map[key] = {gold:0, gray:0, items:[], hasNote:false};
       map[key][s.type]++;
       map[key].items.push(s);
+      if(s.note) map[key].hasNote = true;
     });
     Object.keys(map).forEach(function(k){
       map[k].items.sort(function(a,b){ return a.ts - b.ts; });
@@ -744,17 +810,40 @@
   }
 
   function renderUserName(){
-    var name = loadUserName();
     var el = document.getElementById("userName");
+    if(!el || el.tagName === "INPUT") return;
+    var name = loadUserName();
     el.textContent = name ? name + "さん ✎" : "名前を設定 ✎";
   }
 
-  function editUserName(){
+  function startEditUserName(){
     var current = loadUserName();
-    var input = window.prompt("表示する名前を入力してください", current);
-    if(input === null) return;
-    saveUserName(input.trim());
-    renderUserName();
+    var target = document.getElementById("userName");
+    if(!target || target.tagName === "INPUT") return;
+    var input = document.createElement("input");
+    input.type = "text";
+    input.id = "userName";
+    input.className = "user-name-input";
+    input.maxLength = 30;
+    input.value = current;
+    input.placeholder = "名前を入力";
+    target.replaceWith(input);
+    input.focus();
+    input.select();
+
+    function commit(){
+      saveUserName(input.value.trim());
+      var div = document.createElement("div");
+      div.className = "user-name";
+      div.id = "userName";
+      input.replaceWith(div);
+      renderUserName();
+      div.addEventListener("click", startEditUserName);
+    }
+    input.addEventListener("blur", commit);
+    input.addEventListener("keydown", function(e){
+      if(e.key === "Enter"){ input.blur(); }
+    });
   }
 
   function renderHome(dayMap){
@@ -848,7 +937,8 @@
         if(info.gold > 0) badges += '<span class="badge gold">'+info.gold+'</span>';
         if(info.gray > 0) badges += '<span class="badge gray">'+info.gray+'</span>';
       }
-      cell.innerHTML = '<div class="daynum">'+day+'</div><div class="cal-badges">'+badges+'</div>';
+      var noteFlag = (info && info.hasNote) ? '<span class="note-flag">📝</span>' : '';
+      cell.innerHTML = noteFlag + '<div class="daynum">'+day+'</div><div class="cal-badges">'+badges+'</div>';
       if(!isFuture){
         cell.addEventListener("click", function(k){
           return function(){ openDayModal(k); };
@@ -891,15 +981,26 @@
         var row = document.createElement("div");
         row.className = "modal-item";
         row.innerHTML =
-          '<span class="dot-sm ' + item.type + '"></span>' +
-          '<span class="t">' + (item.type === "gold" ? "金スタンプ" : "灰スタンプ") + ' ・ ' + fmtTime(item.ts) + '</span>' +
-          '<button data-id="' + item.id + '">✕</button>';
+          '<div class="modal-item-row">' +
+            '<span class="item-badge ' + item.type + '">' + (item.type === "gold" ? "金スタンプ" : "灰スタンプ") + '</span>' +
+            '<span class="t">' + fmtTime(item.ts) + '</span>' +
+            '<button data-id="' + item.id + '">✕</button>' +
+          '</div>' +
+          '<input type="text" class="note-input" data-note-id="' + item.id + '" value="' + escapeHtml(item.note || "") + '" placeholder="＋ コメントを追加" maxlength="200">';
         list.appendChild(row);
       });
       list.querySelectorAll("button[data-id]").forEach(function(btn){
         btn.addEventListener("click", function(){
           removeStamp(btn.getAttribute("data-id"));
           renderModal();
+        });
+      });
+      list.querySelectorAll(".note-input").forEach(function(inp){
+        inp.addEventListener("blur", function(){
+          saveNote(inp.getAttribute("data-note-id"), inp.value);
+        });
+        inp.addEventListener("keydown", function(e){
+          if(e.key === "Enter"){ inp.blur(); }
         });
       });
     }
@@ -968,19 +1069,28 @@
         state.stamps.forEach(function(s){ existingIds[s.id] = true; });
         incoming.forEach(function(s){
           if(s && s.id && s.type && s.ts && !existingIds[s.id]){
-            state.stamps.push({id:s.id, type:s.type, ts:s.ts});
+            state.stamps.push({id:s.id, type:s.type, ts:s.ts, note:s.note || ""});
             existingIds[s.id] = true;
             added++;
           }
         });
         saveData();
         renderAll();
-        window.alert(added + "件のスタンプを読み込みました。");
+        showImportMessage(added + "件のスタンプを読み込みました。");
       }catch(err){
-        window.alert("読み込みに失敗しました。ファイルの内容を確認してください。");
+        showImportMessage("読み込みに失敗しました。ファイルの内容を確認してください。");
       }
     };
     reader.readAsText(file);
+  }
+
+  function showImportMessage(text){
+    var el = document.getElementById("importMsg");
+    if(!el) return;
+    el.textContent = text;
+    setTimeout(function(){
+      if(el.textContent === text) el.textContent = "";
+    }, 5000);
   }
 
   function renderAll(){
@@ -1010,7 +1120,10 @@
 
   document.querySelectorAll(".add-card .stamp-btn").forEach(function(btn){
     btn.addEventListener("click", function(){
-      addStamp(btn.getAttribute("data-type"), state.selectedDate);
+      var noteInput = document.getElementById("noteInput");
+      var noteVal = noteInput.value.trim();
+      addStamp(btn.getAttribute("data-type"), state.selectedDate, noteVal);
+      noteInput.value = "";
     });
   });
 
@@ -1058,7 +1171,7 @@
     addStamp("gray", state.modalDate);
   });
 
-  document.getElementById("userName").addEventListener("click", editUserName);
+  document.getElementById("userName").addEventListener("click", startEditUserName);
 
   document.getElementById("exportBtn").addEventListener("click", exportData);
   document.getElementById("importBtn").addEventListener("click", function(){
