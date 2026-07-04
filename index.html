@@ -32,7 +32,12 @@
     --radius:20px;
   }
   *{box-sizing:border-box;}
-  html,body{height:100%;}
+  html,body{
+    height:100%;
+    width:100%;
+    overflow-x:hidden;
+    overscroll-behavior-x:none;
+  }
   body{
     margin:0;
     font-family:"Hiragino Sans","Yu Gothic UI","Noto Sans JP",-apple-system,BlinkMacSystemFont,sans-serif;
@@ -41,6 +46,7 @@
     display:flex;
     justify-content:center;
     min-height:100vh;
+    touch-action:pan-y;
   }
   .phone{
     width:100%;
