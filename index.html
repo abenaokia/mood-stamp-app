@@ -318,14 +318,16 @@
     color:var(--ink);
     cursor:pointer;
     position:relative;
+    min-width:0;
+    overflow:hidden;
   }
   .cal-cell.empty{background:transparent;border:none;cursor:default;}
   .cal-cell .daynum{font-size:10.5px;color:var(--sub);}
   .cal-cell.future{opacity:.35;cursor:default;}
   .cal-cell.today{box-shadow:0 0 0 2px var(--accent) inset;}
-  .cal-badges{display:flex;gap:3px;justify-content:center;margin-top:2px;flex-wrap:wrap;}
+  .cal-badges{display:flex;flex-direction:column;align-items:center;gap:2px;margin-top:2px;max-width:100%;}
   .badge{
-    font-size:9px;font-weight:700;color:#fff;border-radius:8px;padding:1px 5px;min-width:14px;line-height:1.4;
+    font-size:8px;font-weight:700;color:#fff;border-radius:6px;padding:1px 4px;min-width:0;line-height:1.3;
   }
   .badge.gold{background:linear-gradient(135deg,var(--gold-2),var(--gold-3));}
   .badge.gray{background:linear-gradient(135deg,var(--gray-2),var(--gray-3));}
